@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 
 const User= require('../../models/Users.js')
 const { check, validationResult}= require('express-validator/check')
+
 router.post('/', 
 [   check('name', 'Name is required').not().isEmpty().
     check('email', 'Please include email').isEmail(),
@@ -22,7 +23,7 @@ router.post('/',
         try{
             let user = await User.findOne({email});
             if(user){
-                res.status(400).json({ errors: [{msg: 'User Already exists'}]});
+               return res.status(400).json({ errors: [{msg: 'User Already exists'}]});
             }
             const avatar = gravatr.url(email, {
                 s:'200',
