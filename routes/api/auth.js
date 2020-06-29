@@ -1,68 +1,79 @@
-const express= require("express");
+const express = require('express');
 const router = express.Router();
-const auth = require('../../middlewares/auth');
-
-const bcrypt= require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const config = require('config');
+const { check } = require('express-validator');
 
-const User= require('../../models/Users.js')
-const { check, validationResult}= require('express-validator/check')
+const auth = require('../../middleware/auth');
+const validateShema = require('../../middleware/validate-schema');
 
-router.get('/', auth,  async (req,res)=>{
-    try{
-        const user= await User.findById(req.user.id).select('-password');
+const User = require('../../models/User');
+
+// @route  GET api/auth
+// @desc   Test route
+// @access Public
+router.get('/', auth, async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id).select('-password');
         res.json(user);
-    }
-    catch(err){
-            console.error(err.message);
-            res.status(500).send('Server Error'); 
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
     }
 });
 
-router.post('/', 
-[
-    check('email', 'Please include email').isEmail(),
-    check('password', 'Please include password with 6 or more char').exists()
-],
-    async (req,res)=>{
-        const errors= validationResult(req);
-        if(!errors.isEmpty()){
-            return res.status(400).json({ errors : errors.array()});
-        }
+// @route  POST api/auth
+// @desc   Authenticate user and get token
+// @access Public
+router.post(
+    '/',
+    [
+        check('email', 'Please include a valid email').isEmail(),
+        check('password', 'Password is required').exists(),
+    ],
+    validateShema,
+    async (req, res) => {
+        const { email, password } = req.body;
 
-        const { email , password}= req.body;
-        try{
-            let user = await User.findOne({email});
-            if(! user){
-               return res.status(400).json({ errors: [{msg: 'Invalid Credentials'}]});
+        try {
+            let user = await User.findOne({ email });
+
+            if (!user) {
+                return res.status(400).json({
+                    errors: [{ msg: 'Invalid credentials' }],
+                });
             }
 
             const isMatch = await bcrypt.compare(password, user.password);
-            if(! isMatch){
-                return res.status(400).json({ errors: [{msg: 'Invalid Credentials'}]});
-             }
-            
-            
-            const payload={
-                user:{
-                    id: user.id
-                }
+            if (!isMatch) {
+                return res.status(400).json({
+                    errors: [{ msg: 'Invalid credentials' }],
+                });
             }
-            //return jsonwebtoken
-            jwt.sign(payload, 'sumanth@secret', { expiresIn: 360000},(err, token)=>{
-                    if(err) throw err;
-                    res.json({token});
-            });
-   
+
+            const payload = {
+                user: {
+                    id: user.id,
+                },
+            };
+
+            jwt.sign(
+                payload,
+                config.get('jwtSecret'),
+                { expiresIn: 360000 },
+                (err, token) => {
+                    if (err) {
+                        throw err;
+                    }
+                    res.json({ token });
+                }
+            );
+        } catch (err) {
+            console.error(err.message);
+            res.status(500).send('Server error');
         }
-        catch(err) {
-                console.error(err.message);
-                res.status(500).send("Error Message");
-        }
+    }
+);
 
-
- });
-
-
-
-module.exports= router;
+module.exports = router;
