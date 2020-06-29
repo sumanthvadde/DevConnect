@@ -1,1 +1,1 @@
-Fullstack MERN course by Brad Traversy PROJECT repo 
+MERN Stack Front To Back Full Stack React, Redux & Node.js project repo
